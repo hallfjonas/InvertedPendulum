@@ -4,9 +4,14 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from integrators import euler_controlled
 
+# Pendulum dimensions
+m = 1       # mass   [kg]
+l = 1       # length [m]
+g = 9.81    # Gravitational force
+
 # Discretization Grid
-T = 20
-N = 200
+T = 10
+N = 100
 h = T/N
 t = np.arange(0,T+h,h)
 
@@ -24,15 +29,15 @@ x0 = np.array([p0, v0, phi0, phi_dot0])
 
 # Controll sequence (currently constant)
 nu = 1
-u_fixed = 0
+u_fixed = 0 # 1.0/10.0
 u_trajectory = np.repeat(u_fixed, N)
 
 # System Dynamics 
 # States: x = [p, p_dot,     phi, phi_dot]
-#     x_dot = [v,     u, phi_dot, -phi - u]
+#     x_dot = [v,     u, phi_dot, -g/l*sin(phi) + u/(m*l**2))]
 # Remark: I think phi_dot_dot needs adjustments
 def f(x, u):
-    return( np.array([x[1], u, x[3], -x[2] - u]) )
+    return( np.array([x[1], u, x[3], -g/l*math.sin(x[2]) + 1/(m*l**2.0)]) )
 
 # Integrate
 x_trajectory = euler_controlled(f, x0, u_trajectory, h, N)
