@@ -1,10 +1,9 @@
 import imp
-from casadi import SX, Function, mtimes, nlpsol, vertcat
-from math import pi
-import random
+from casadi import SX, Function, mtimes, nlpsol, vertcat, SX_inf
+from math import inf, pi
 
 from numpy.core.function_base import linspace
-from two_joint_pendulum import fun, create_animation
+from two_joint_pendulum import fun, create_animation, create_subplot_animation
 import matplotlib.pyplot as plt
 
 T = 8.0
@@ -12,10 +11,11 @@ N = 100
 nx = 4
 nu = 1
 
-x0 = [-pi/2, 0.0, 0.0, 0.0]
+x0 = [0.0, 0.0, 0.0, 0.0]
 
 # Control
 u = SX.sym("u")
+bound_u = 40.0
 
 # State
 x = SX.sym("x", 4)
@@ -39,10 +39,6 @@ for j in range(M):
     X=X+DT/6*(k1 +2*k2 +2*k3 +k4)
 F = Function('F', [X0, U], [X],['x0','p'],['xf'])
 
-# Evaluate at a test point
-Fk = F(x0=[0.2,0.3,0.4,0.5],p=0.4)
-print(Fk['xf'])
-
 # Start with an empty NLP
 w=[]
 w0 = []
@@ -58,37 +54,39 @@ for k in range(N):
     # New NLP variable for the control
     Uk = SX.sym('U_' + str(k))
     w += [Uk]
-    lbw += [-10]
-    ubw += [10]
+    lbw += [-bound_u]
+    ubw += [bound_u]
     w0 += [0]
 
     # Integrate till the end of the interval
     Fk = F(x0=Xk, p=Uk)
     Xk = Fk['xf']
 
-    J += fact*(Xk[0]-pi/2.0)**2.0
+    J += fact*(Xk[0] - pi/2.0)**2.0
     J += fact*(Xk[1])**2.0
+    J += fact*(Uk[0])**2.0/10.0
 
     fact *= beta
 
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w)}
-solver = nlpsol('solver', 'ipopt', prob)
+solver = nlpsol('solver', 'ipopt', prob);
 
 # Solve the NLP
 sol = solver(x0=w0, lbx=lbw, ubx=ubw)
-w_opt = sol['x']
+u_opt = sol['x'].full().flatten()
 
-# Plot the solution
-u_opt = w_opt
+x1_opt = [x0[0]]
+x2_opt = [x0[1]]
+x3_opt = [x0[2]]
+x4_opt = [x0[3]]
 x_opt = [x0]
-for k in range(N):
-    Fk = F(x0=x_opt[-1], p=u_opt[k])
-    x_opt += [Fk['xf'].full()]
-x1_opt = [r[0] for r in x_opt]
-x2_opt = [r[1] for r in x_opt]
-x3_opt = [r[2] for r in x_opt]
-x4_opt = [r[3] for r in x_opt]
+for u in u_opt:
+    tmp = F(x0=x_opt[-1],p=u)['xf'].full().flatten()
+    x1_opt.append(tmp[0])
+    x2_opt.append(tmp[1])
+    x3_opt.append(tmp[2])
+    x4_opt.append(tmp[3])
+    x_opt.append([tmp[0], tmp[1], tmp[2], tmp[3]])
 
-create_animation(linspace(0,T,num=len(x_opt)), x_opt, "TEST")
-
+create_subplot_animation(linspace(0,T,num=len(u_opt)), {'u': u_opt, 'x': [x1_opt, x2_opt, x3_opt, x4_opt]}, "TEST")
