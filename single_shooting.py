@@ -11,11 +11,11 @@ N = 100
 nx = 4
 nu = 1
 
-x0 = [0.0, 0.0, 0.0, 0.0]
+x0 = [-pi/2.0, 0.0, 0.0, 0.0]
 
 # Control
 u = SX.sym("u")
-bound_u = 40.0
+bound_u = 10.0
 
 # State
 x = SX.sym("x", 4)
@@ -64,7 +64,9 @@ for k in range(N):
 
     J += fact*(Xk[0] - pi/2.0)**2.0
     J += fact*(Xk[1])**2.0
-    J += fact*(Uk[0])**2.0/10.0
+
+    # Add cost term to control if desired
+    # J += fact*(Uk[0])**2.0/10.0
 
     fact *= beta
 
