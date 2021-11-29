@@ -175,24 +175,25 @@ def create_subplot_animation(t_vec, states, expname, save=False):
         ydata = [0.0, py1, py2]
         ln[0].set_data(xdata, ydata)
 
-        # Plot the control
+        # Clear data when t=t0
         t_val = frame[-1]
+        if (t_val == t_vec[0]):
+            t_data.clear()
+            u_data.clear()
+            x1_data.clear()
+            x2_data.clear()
+
+        # Plot the control
         u_val = frame[-2]
         u_data.append(u_val)
         t_data.append(t_val)        
         ln[1].set_data(t_data, u_data)
-        # if (t_val == t_vec[-2]):
-        #     t_data.clear()
-        #     u_data.clear()
 
         # Plot the angles
         x1_data.append(frame[0])
         x2_data.append(frame[1])        
         ln[2].set_data(t_data, x1_data)
         ln[3].set_data(t_data, x2_data)
-        # if (t_val == t_vec[-2]):
-        #     x1_data.clear()
-        #     x2_data.clear()
 
         return ln
 
