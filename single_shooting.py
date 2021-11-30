@@ -1,21 +1,32 @@
 import imp
-from casadi import SX, Function, mtimes, nlpsol, vertcat, SX_inf
-from math import inf, pi
+from casadi import SX, Function, nlpsol, vertcat, cos, sin
+from math import inf, log, exp, pi 
 
 from numpy.core.function_base import linspace
 from two_joint_pendulum import fun, create_animation, create_subplot_animation
 import matplotlib.pyplot as plt
 
-T = 8.0
-N = 100
+T = 4.0
+N = 50
 nx = 4
 nu = 1
 
-x0 = [-pi/2.0, 0.0, 0.0, 0.0]
+# The initial position
+x0 = [pi/2.0 + 0.0, -0.051, 0.0, 0.0]
 
 # Control
 u = SX.sym("u")
-bound_u = 10.0
+bound_u = 40.0
+
+# Cost
+penalize_angles = True              # Penalty term on xk[0], xk[1] => Convex cost terms
+penalize_position = True           # Penalty term on (sin, cos of xk[0], xk[1]) => Non-convex cost terms
+penalize_velocity = False           # Also include convex cost terms of velocity
+penalize_control = False            # Also include convex cost terms of control
+
+# Cost factors begin at fact, and multiply by beta after each node
+fact = 10e-2
+beta = exp(log(100.0/fact)/N)
 
 # State
 x = SX.sym("x", 4)
@@ -46,8 +57,6 @@ lbw = []
 ubw = []
 J = 0
 
-fact = 10e-4
-beta = 1.2
 # Formulate the NLP
 Xk = SX(x0)
 for k in range(N):
@@ -62,11 +71,23 @@ for k in range(N):
     Fk = F(x0=Xk, p=Uk)
     Xk = Fk['xf']
 
-    J += fact*(Xk[0] - pi/2.0)**2.0
-    J += fact*(Xk[1])**2.0
+    # Cost term: First angle at 90°, second angle at 0°
+    if penalize_angles:
+        # J += fact*(Xk[0] - pi/2.0)**2.0
+        J += fact*(Xk[1])**2.0
+
+    # Alternative cost term: Position of endeffector all the way up
+    if penalize_position:
+        J += fact*((cos(Xk[0]) + cos(Xk[0]+Xk[1]))**2.0 + (sin(Xk[0]) + sin(Xk[0]+Xk[1]) - 1.0)**2.0)
+
+    # Add cost term to velocity
+    if penalize_velocity:
+        J += (Xk[2])**2.0
+        J += (Xk[3])**2.0
 
     # Add cost term to control if desired
-    # J += fact*(Uk[0])**2.0/10.0
+    if penalize_control:
+        J += fact*(Uk[0])**2.0/5.0
 
     fact *= beta
 
