@@ -18,8 +18,9 @@ h = T/N
 x0 = [pi/2.0 + 0.0, -0.051, 0.0, 0.0]
 
 # Cost
-penalize_angles = True              # Penalty term on xk[0], xk[1] => Convex cost terms
-penalize_position = True           # Penalty term on (sin, cos of xk[0], xk[1]) => Non-convex cost terms
+penalize_com = True                 # Penalty term on the center of mass (m1 + m2)/2
+penalize_angles = False             # Penalty term on xk[0], xk[1] => Convex cost terms
+penalize_position = False           # Penalty term on (sin, cos of xk[0], xk[1]) => Non-convex cost terms
 penalize_velocity = False           # Also include convex cost terms of velocity
 penalize_control = False            # Also include convex cost terms of control
 
@@ -79,21 +80,32 @@ for k in range(N):
     Fk = F(x0=Xk, p=Uk)
     Xk = Fk['xf']
 
-    # Cost term: First angle at 90°, second angle at 0°
+    # Cost term: center of mass on y axis above 0
+    if penalize_com:
+        com_x = cos(Xk[0]) + cos(Xk[0]+Xk[1])
+        com_y = sin(Xk[0]) + sin(Xk[0]+Xk[1])
+
+        # Quadratic term on com x
+        J += weights[k]*com_x**2.0
+
+        # Linear term on com y (small perturbations are more expensive)
+        J += -weights[k]*com_y
+
+    # Cost term: first angle at 90°, second angle at 0°
     if penalize_angles:
         J += weights[k]*(Xk[0] - pi/2.0)**2.0
         J += weights[k]*(Xk[1])**2.0 / 2.0
 
-    # Alternative cost term: Position of endeffector all the way up
+    # Cost term: position of endeffector all the way up
     if penalize_position:
         J += weights[k]*((cos(Xk[0]) + cos(Xk[0]+Xk[1]))**2.0 + (sin(Xk[0]) + sin(Xk[0]+Xk[1]) - 1.0)**2.0)
 
-    # Add cost term to velocity
+    # Cost term: velocity
     if penalize_velocity:
         J += (Xk[2])**2.0
         J += (Xk[3])**2.0
 
-    # Add cost term to control if desired
+    # Cost term: control
     if penalize_control:
         J += weights[k]*(Uk[0])**2.0/5.0
 
